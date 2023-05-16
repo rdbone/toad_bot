@@ -1,0 +1,5 @@
+settings.py
+*.log
+for_bot/
+__pycache__/
+.vscode/
