@@ -106,6 +106,64 @@ def send_toad_picture(update, context):
     chat_id = update.effective_chat.id
     context.bot.send_photo(chat_id = chat_id, photo = open(toad_pic_filename, 'rb'))
 
+#Функция для проверки города
+def check_city(user_city, user_data):
+    #базовые проверки введенного города на первый символ и что не введены символы кроме букв и двух тире/дефисов
+    result = re.fullmatch("[ёа-я]*\s?[-‐‑-ꟷー一]?[ёа-я]*\s?[-‐‑-ꟷー一]?[ёа-я]*", user_city)
+    print(result)
+    if not result:
+        return f'Введи город на русском'
+    if user_city[0] in ['ы', 'ъ', 'ь']:
+        return f'Город не может начинаться с такой буквы'
+    #проверяем, играл ли пользователь уже в эту игру, если нет, то записываем для него список городов
+    if 'initial_cities' not in user_data:
+        if user_city in [x.lower() for x in settings.INITIAL_CITIES]:
+            user_data['initial_cities'] = [x.lower() for x in settings.INITIAL_CITIES]
+            user_data['passed_cities'] = []
+            user_data['current_user_letter'] = user_city[0]
+        else:
+            return f'Не знаю такого города'
+    #тут основная логика
+    if  user_city[0] != user_data['current_user_letter']:
+        return f'Твой город должен начинаться с буквы {user_data["current_user_letter"].capitalize()}'
+    if user_city in user_data['initial_cities']:
+        user_data['passed_cities'].append(user_city)
+        user_data['initial_cities'].remove(user_city)
+        i = 1
+        while user_city[-i] in ['ы', 'ъ', 'ь']:
+            i += 1
+        letter = user_city[-i]
+        r = re.compile(f"{letter}[ёа-я]*[-‐‑-ꟷー一]?[ёа-я]*[-‐‑-ꟷー一]?[ёа-я]*")
+        try:
+            suitable_cities = list(filter(r.match, user_data['initial_cities']))
+            print(suitable_cities)
+            bot_city = choice(suitable_cities)
+            user_data['passed_cities'].append(bot_city)
+            user_data['initial_cities'].remove(bot_city)
+            ind = 1
+            while bot_city[-ind] in ['ы', 'ъ', 'ь']:
+                print(bot_city[-ind])
+                ind += 1
+            user_data['current_user_letter'] = bot_city[-ind]
+            return f'{bot_city.capitalize()}. Твой ход'
+        except IndexError:
+            return f'Не знаю больше городов на букву {letter.capitalize()}. Ты выиграл'
+    elif user_city in user_data['passed_cities']:
+        return f'Город {user_city.capitalize()} уже был'
+    else:
+        return f'Не знаю такого города'
+     
+#Функция для игры в города
+def play_cities(update, context):
+    if context.args:
+        user_city = " ".join(context.args).lower()
+        print(user_city)
+        message = check_city(user_city,context.user_data)
+        update.message.reply_text(message)
+    else:
+        message = 'Введите город'
+        update.message.reply_text(message)
+
 # Тело бота
 def main():
     # Создаем бота и передаем ему ключ для авторизации на серверах Telegram
@@ -118,6 +176,7 @@ def main():
     dp.add_handler(CommandHandler('next_full_moon', next_full_moon))
     dp.add_handler(CommandHandler('guess', guess_number))
     dp.add_handler(CommandHandler('toad', send_toad_picture))
+    dp.add_handler(CommandHandler('cities', play_cities))
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
 
     logging.info('Bot has been lauched')
