@@ -110,7 +110,6 @@ def send_toad_picture(update, context):
 def check_city(user_city, user_data):
     #базовые проверки введенного города на первый символ и что не введены символы кроме букв и двух тире/дефисов
     result = re.fullmatch("[ёа-я]*\s?[-‐‑-ꟷー一]?[ёа-я]*\s?[-‐‑-ꟷー一]?[ёа-я]*", user_city)
-    print(result)
     if not result:
         return f'Введи город на русском'
     if user_city[0] in ['ы', 'ъ', 'ь']:
@@ -136,13 +135,11 @@ def check_city(user_city, user_data):
         r = re.compile(f"{letter}[ёа-я]*[-‐‑-ꟷー一]?[ёа-я]*[-‐‑-ꟷー一]?[ёа-я]*")
         try:
             suitable_cities = list(filter(r.match, user_data['initial_cities']))
-            print(suitable_cities)
             bot_city = choice(suitable_cities)
             user_data['passed_cities'].append(bot_city)
             user_data['initial_cities'].remove(bot_city)
             ind = 1
-            while bot_city[-ind] in ['ы', 'ъ', 'ь']:
-                print(bot_city[-ind])
+            while bot_city[-ind] in ['ы', 'ъ', 'ь']: 
                 ind += 1
             user_data['current_user_letter'] = bot_city[-ind]
             return f'{bot_city.capitalize()}. Твой ход'
@@ -157,11 +154,118 @@ def check_city(user_city, user_data):
 def play_cities(update, context):
     if context.args:
         user_city = " ".join(context.args).lower()
-        print(user_city)
         message = check_city(user_city,context.user_data)
         update.message.reply_text(message)
     else:
         message = 'Введите город'
+        update.message.reply_text(message)
+
+#Функция проверки на отрицательные числа и тип операции
+def check_negative_numbers(user_string):
+    signs = [x for x in user_string if x in '-+*/']
+    number_of_signs = len(signs)
+    if number_of_signs == 1:
+        return '2 positives'
+    elif number_of_signs == 3:
+        if len(set(signs)) == 1:
+            return '2 negatives, minus'
+        else:
+            return '2 negatives, another action'
+    elif number_of_signs == 2:
+        result = re.fullmatch("-[0-9]+[.,]?[0-9]*[-+*/][0-9]+[.,]?[0-9]*", user_string)
+        if not result:
+            if len(set(signs)) == 1:
+                return 'Second negative, minus'
+            else:
+                return 'Second negative, another action'
+        if len(set(signs)) == 1:
+            return 'First negative, minus'
+        else:
+            return 'First negative, another action'
+
+#Функция замены запятой на точку и приведения типов
+def change_delimeter_and_type(numbers):
+    numbers = [item.replace(',', '.') for item in numbers]
+    for i, item in enumerate(numbers):
+        if '.' in item:
+            item = float(item)
+            numbers[i] = item
+        else:
+            item = int(item)
+            numbers[i] = item
+    return numbers
+
+#Функция вычислений
+def calculation(user_string, numbers):
+    if '+' in user_string:
+        return f'Результат сложения: {numbers[0] + numbers[1]}'
+    elif '-' in user_string:
+        return f'Результат вычитания: {numbers[0] - numbers[1]}'
+    elif '*' in user_string:
+        return f'Результат умножения: {numbers[0] * numbers[1]}'
+    elif '/' in user_string:
+        try:
+            division_result = numbers[0]/numbers[1]
+            return f'Результат деления: {division_result}'
+        except ZeroDivisionError:
+            return 'На ноль делить нельзя'
+
+#Функция калькулятора
+def convert_to_calc(user_string): 
+    result = re.fullmatch("-?[0-9]+[.,]?[0-9]*[-+*/]-?[0-9]+[.,]?[0-9]*", user_string)
+    if not result:
+        return 'Введи корректное выражение после команды'
+    check_result = check_negative_numbers(user_string)
+    if check_result == '2 positives':
+        number_list = re.split('[-+*/]',user_string)
+        number_list = change_delimeter_and_type(number_list)
+        return calculation(user_string, number_list)
+    elif check_result == '2 negatives, another action':
+        user_string = user_string.replace('-','')
+        number_list = re.split('[+*/]',user_string)
+        number_list = change_delimeter_and_type(number_list)
+        number_list = [-x for x in number_list]
+        return calculation(user_string, number_list)
+    elif check_result == '2 negatives, minus':
+        number_list = user_string.split('-')
+        number_list = [x for x in number_list if x != '']
+        number_list = change_delimeter_and_type(number_list)
+        number_list = [-x for x in number_list]
+        return calculation(user_string, number_list)
+    elif check_result == 'First negative, minus':
+        number_list = user_string.split('-')
+        number_list = [x for x in number_list if x != '']
+        number_list = change_delimeter_and_type(number_list)
+        number_list[0] = number_list[0] * (-1)
+        return calculation(user_string, number_list)
+    elif check_result == 'First negative, another action':
+        user_string = user_string.replace('-','')
+        number_list = re.split('[+*/]',user_string)
+        number_list = change_delimeter_and_type(number_list)
+        number_list[0] = number_list[0] * (-1)
+        return calculation(user_string, number_list)
+    elif check_result == 'Second negative, minus':
+        number_list = user_string.split('-')
+        number_list = [x for x in number_list if x != '']
+        number_list = change_delimeter_and_type(number_list)
+        number_list[1] = number_list[1] * (-1)
+        return calculation(user_string, number_list)
+    elif check_result == 'Second negative, another action':
+        user_string = user_string.replace('-','')
+        number_list = re.split('[+*/]',user_string)
+        number_list = change_delimeter_and_type(number_list)
+        number_list[1] = number_list[1] * (-1)
+        return calculation(user_string, number_list)
+    
+#Функция общения с калькулятором
+def talk_to_calculate(update, context):
+    if context.args:
+        user_text = "".join(context.args)
+        check_negative_numbers(user_text)
+        result = convert_to_calc(user_text)
+        update.message.reply_text(result)
+    else:
+        message = 'Введите выражение после команды'
         update.message.reply_text(message)
 
 # Тело бота
@@ -177,6 +281,7 @@ def main():
     dp.add_handler(CommandHandler('guess', guess_number))
     dp.add_handler(CommandHandler('toad', send_toad_picture))
     dp.add_handler(CommandHandler('cities', play_cities))
+    dp.add_handler(CommandHandler('calc', talk_to_calculate))
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
 
     logging.info('Bot has been lauched')
