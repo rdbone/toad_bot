@@ -1,12 +1,14 @@
 from datetime import date, datetime
-from emoji import emojize
-import ephem
 from glob import glob
 import logging
 from random import randint, choice
 import re
-import settings
+
+from emoji import emojize
+import ephem
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+
+import settings
 
 logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO,
@@ -160,29 +162,6 @@ def play_cities(update, context):
         message = 'Введите город'
         update.message.reply_text(message)
 
-#Функция проверки на отрицательные числа и тип операции
-def check_negative_numbers(user_string):
-    signs = [x for x in user_string if x in '-+*/']
-    number_of_signs = len(signs)
-    if number_of_signs == 1:
-        return '2 positives'
-    elif number_of_signs == 3:
-        if len(set(signs)) == 1:
-            return '2 negatives, minus'
-        else:
-            return '2 negatives, another action'
-    elif number_of_signs == 2:
-        result = re.fullmatch("-[0-9]+[.,]?[0-9]*[-+*/][0-9]+[.,]?[0-9]*", user_string)
-        if not result:
-            if len(set(signs)) == 1:
-                return 'Second negative, minus'
-            else:
-                return 'Second negative, another action'
-        if len(set(signs)) == 1:
-            return 'First negative, minus'
-        else:
-            return 'First negative, another action'
-
 #Функция замены запятой на точку и приведения типов
 def change_delimeter_and_type(numbers):
     numbers = [item.replace(',', '.') for item in numbers]
@@ -215,53 +194,57 @@ def convert_to_calc(user_string):
     result = re.fullmatch("-?[0-9]+[.,]?[0-9]*[-+*/]-?[0-9]+[.,]?[0-9]*", user_string)
     if not result:
         return 'Введи корректное выражение после команды'
-    check_result = check_negative_numbers(user_string)
-    if check_result == '2 positives':
+    signs = [x for x in user_string if x in '-+*/']
+    number_of_signs = len(signs)
+    if number_of_signs == 1: #2 positives
         number_list = re.split('[-+*/]',user_string)
         number_list = change_delimeter_and_type(number_list)
         return calculation(user_string, number_list)
-    elif check_result == '2 negatives, another action':
-        user_string = user_string.replace('-','')
-        number_list = re.split('[+*/]',user_string)
-        number_list = change_delimeter_and_type(number_list)
-        number_list = [-x for x in number_list]
-        return calculation(user_string, number_list)
-    elif check_result == '2 negatives, minus':
-        number_list = user_string.split('-')
-        number_list = [x for x in number_list if x != '']
-        number_list = change_delimeter_and_type(number_list)
-        number_list = [-x for x in number_list]
-        return calculation(user_string, number_list)
-    elif check_result == 'First negative, minus':
-        number_list = user_string.split('-')
-        number_list = [x for x in number_list if x != '']
-        number_list = change_delimeter_and_type(number_list)
-        number_list[0] = number_list[0] * (-1)
-        return calculation(user_string, number_list)
-    elif check_result == 'First negative, another action':
-        user_string = user_string.replace('-','')
-        number_list = re.split('[+*/]',user_string)
-        number_list = change_delimeter_and_type(number_list)
-        number_list[0] = number_list[0] * (-1)
-        return calculation(user_string, number_list)
-    elif check_result == 'Second negative, minus':
-        number_list = user_string.split('-')
-        number_list = [x for x in number_list if x != '']
-        number_list = change_delimeter_and_type(number_list)
-        number_list[1] = number_list[1] * (-1)
-        return calculation(user_string, number_list)
-    elif check_result == 'Second negative, another action':
-        user_string = user_string.replace('-','')
-        number_list = re.split('[+*/]',user_string)
-        number_list = change_delimeter_and_type(number_list)
-        number_list[1] = number_list[1] * (-1)
-        return calculation(user_string, number_list)
+    elif number_of_signs == 3:
+        if len(set(signs)) == 1: #2 negatives, minus
+            number_list = user_string.split('-')
+            number_list = [x for x in number_list if x != '']
+            number_list = change_delimeter_and_type(number_list)
+            number_list = [-x for x in number_list]
+            return calculation(user_string, number_list)
+        else: #2 negatives, another action
+            user_string = user_string.replace('-','')
+            number_list = re.split('[+*/]',user_string)
+            number_list = change_delimeter_and_type(number_list)
+            number_list = [-x for x in number_list]
+            return calculation(user_string, number_list)
+    elif number_of_signs == 2: #1 negative
+        result = re.fullmatch("-[0-9]+[.,]?[0-9]*[-+*/][0-9]+[.,]?[0-9]*", user_string)
+        if not result:
+            if len(set(signs)) == 1: #Second negative, minus
+                number_list = user_string.split('-')
+                number_list = [x for x in number_list if x != '']
+                number_list = change_delimeter_and_type(number_list)
+                number_list[1] = number_list[1] * (-1)
+                return calculation(user_string, number_list)
+            else: #Second negative, another action
+                user_string = user_string.replace('-','')
+                number_list = re.split('[+*/]',user_string)
+                number_list = change_delimeter_and_type(number_list)
+                number_list[1] = number_list[1] * (-1)
+                return calculation(user_string, number_list)
+        if len(set(signs)) == 1: #First negative, minus
+            number_list = user_string.split('-')
+            number_list = [x for x in number_list if x != '']
+            number_list = change_delimeter_and_type(number_list)
+            number_list[0] = number_list[0] * (-1)
+            return calculation(user_string, number_list)
+        else: #First negative, another action
+            user_string = user_string.replace('-','')
+            number_list = re.split('[+*/]',user_string)
+            number_list = change_delimeter_and_type(number_list)
+            number_list[0] = number_list[0] * (-1)
+            return calculation(user_string, number_list)
     
 #Функция общения с калькулятором
 def talk_to_calculate(update, context):
     if context.args:
         user_text = "".join(context.args)
-        check_negative_numbers(user_text)
         result = convert_to_calc(user_text)
         update.message.reply_text(result)
     else:
