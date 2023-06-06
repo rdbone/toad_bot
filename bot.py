@@ -1,49 +1,14 @@
-import logging, settings, ephem
+import logging
+
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from datetime import date
+
+from handlers import (count_words, find_constellation, greet_user, guess_number, next_full_moon, 
+                      play_cities, send_toad_picture, talk_to_calculate, talk_to_me, user_coordinates)
+import settings
 
 logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO,
                     filename='bot.log')
-
-# Создаем функцию для приветствия пользователя
-def greet_user(update, context):
-    logging.info('Bot has been lauched')
-    text = 'Вызван /start'
-    print(text)
-    update.message.reply_text('Дороу, жабокрад')
-
-# Создаем функцию для ответа пользователю его же сообщением
-def talk_to_me(update, context):
-    user_text = update.message.text
-    logging.info(f'User said {user_text}')
-    print(user_text)
-    update.message.reply_text(user_text)
-
-# Проверяет, что объект есть в списке объектов пакета ephem
-def check_planet(planet):
-    for item in ephem._libastro.builtin_planets():
-        if planet in str(item):
-            return True
-    return False    
-    
-
-def find_constellation(update, context):
-    planet = update.message.text.split()[-1].lower().capitalize()
-    if not check_planet(planet):
-        update.message.reply_text('Сори, жабокрад, такой планеты не видел')
-        return
-    today = date.today()
-    logging.info(f'User asked for a constellation of {planet} for {today}')
-    planet_function = getattr(ephem, planet, None)
-    if planet_function is not None:
-        print(planet_function)
-        planet_data = planet_function(today)
-        print(planet_data)
-        update.message.reply_text(f'Сейчас планета {planet} находится в созвездии {ephem.constellation(planet_data)[-1]}')
-        print(ephem.constellation(planet_data))
-    else:
-        update.message.reply_text('Сори, жабокрад, такой планеты не знаю')
 
 # Тело бота
 def main():
@@ -53,6 +18,14 @@ def main():
     dp = mybot.dispatcher
     dp.add_handler(CommandHandler('start', greet_user))
     dp.add_handler(CommandHandler("planet", find_constellation))
+    dp.add_handler(CommandHandler('wordcount', count_words))
+    dp.add_handler(CommandHandler('next_full_moon', next_full_moon))
+    dp.add_handler(CommandHandler('guess', guess_number))
+    dp.add_handler(CommandHandler('toad', send_toad_picture))
+    dp.add_handler(CommandHandler('cities', play_cities))
+    dp.add_handler(CommandHandler('calc', talk_to_calculate))
+    dp.add_handler(MessageHandler(Filters.regex('^Рандомный жабокрад$'), send_toad_picture))
+    dp.add_handler(MessageHandler(Filters.location, user_coordinates))
     dp.add_handler(MessageHandler(Filters.text, talk_to_me))
 
     logging.info('Bot has been lauched')
