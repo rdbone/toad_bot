@@ -1,6 +1,9 @@
 from random import randint, choice
 import re
 
+from clarifai_grpc.channel.clarifai_channel import ClarifaiChannel
+from clarifai_grpc.grpc.api import service_pb2_grpc, service_pb2, resources_pb2
+from clarifai_grpc.grpc.api.status import status_code_pb2
 from emoji import emojize
 import ephem
 from telegram import ReplyKeyboardMarkup, KeyboardButton
@@ -157,4 +160,41 @@ def convert_to_calc(user_string):
         
 #функция клавиатуры
 def main_keyboard():
-    return ReplyKeyboardMarkup([['Рандомный жабокрад', KeyboardButton('Мое гео', request_location=True)]])
+    return ReplyKeyboardMarkup([['Рандомный жабокрад', KeyboardButton('Мое гео', request_location=True), 'Заполнить анкету']])
+
+#функция определения, что на картинке жаба
+def has_object_on_image(file_name, object_names):
+    channel = ClarifaiChannel.get_grpc_channel()
+    app = service_pb2_grpc.V2Stub(channel)
+    metadata = (('authorization', f'Key {settings.CLARIFAI_API_KEY}'),)
+
+    with open(file_name, 'rb') as f:
+        file_data = f.read()
+        image = resources_pb2.Image(base64=file_data)
+
+        request = service_pb2.PostModelOutputsRequest(
+            model_id='aaa03c23b3724a16a56b629203edc62c',
+            inputs=[
+            resources_pb2.Input(data=resources_pb2.Data(image=image))
+            ])
+        response = app.PostModelOutputs(request, metadata=metadata)
+        return check_response_for_object(response, object_names)
+
+def check_response_for_object(response, object_names):
+    if response.status.code == status_code_pb2.SUCCESS:
+        for concept in response.outputs[0].data.concepts:
+            if concept.name in object_names and concept.value >= 0.8:
+                return True
+    else:
+        return f'Ошибка распознавания картинки {response.outputs[0].status.details}'
+    return False
+
+if __name__ == '__main__':
+    print(has_object_on_image('images/toad_singapore_1.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/toad_singapore_2.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/toad_singapore_3.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/toad_death_note.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/toad_singapore_4.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/toad_pokemon.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/brunch_latte.jpg', ['toad', 'frog']))
+    print(has_object_on_image('images/lizard_enemy.jpg', ['toad', 'frog']))
